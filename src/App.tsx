@@ -1,30 +1,16 @@
+import { useState } from 'react'
+
 import './App.css'
-
-type CalendarCell = {
-  date: Date
-  inMonth: boolean
-}
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-const buildCalendar = (year: number, monthIndex: number): CalendarCell[] => {
-  const firstOfMonth = new Date(year, monthIndex, 1)
-  const lastOfMonth = new Date(year, monthIndex + 1, 0)
-  const startOffset = firstOfMonth.getDay()
-  const totalCells = 42
-  const cells: CalendarCell[] = []
-
-  for (let i = 0; i < totalCells; i += 1) {
-    const dayNumber = i - startOffset + 1
-    const date = new Date(year, monthIndex, dayNumber)
-    const inMonth = dayNumber >= 1 && dayNumber <= lastOfMonth.getDate()
-    cells.push({ date, inMonth })
-  }
-
-  return cells
-}
+import WeekView from './components/WeekView'
+import { coaches, events } from './data/calendarData'
+import { DAY_NAMES, buildCalendar } from './utils/calendarUtils'
 
 function App() {
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
+  const [visibleCoachIds, setVisibleCoachIds] = useState<string[]>(
+    coaches.map((coach) => coach.id),
+  )
+
   const today = new Date()
   const monthIndex = today.getMonth()
   const year = today.getFullYear()
@@ -39,6 +25,7 @@ function App() {
   const calendar = buildCalendar(year, monthIndex)
   const bookedDays = new Set([3, 4, 12, 13, 21, 22, 28])
   const holdDays = new Set([7, 19])
+
 
   const stats = [
     { label: 'Upcoming bookings', value: '8', trend: '+2 this week' },
@@ -103,49 +90,100 @@ function App() {
                 {monthLabel} {year}
               </h2>
             </div>
-            <div className="legend">
-              <span className="legend__item">
-                <span className="legend__dot legend__dot--booked" /> Booked
-              </span>
-              <span className="legend__item">
-                <span className="legend__dot legend__dot--hold" /> Hold
-              </span>
-              <span className="legend__item">
-                <span className="legend__dot legend__dot--open" /> Open
-              </span>
+            <div className="calendar__controls">
+              <div className="view-toggle">
+                <button
+                  className={`view-toggle__button${viewMode === 'month' ? ' view-toggle__button--active' : ''}`}
+                  onClick={() => setViewMode('month')}
+                  type="button"
+                >
+                  Month
+                </button>
+                <button
+                  className={`view-toggle__button${viewMode === 'week' ? ' view-toggle__button--active' : ''}`}
+                  onClick={() => setViewMode('week')}
+                  type="button"
+                >
+                  Week
+                </button>
+              </div>
+              {viewMode === 'month' && (
+                <div className="legend">
+                  <span className="legend__item">
+                    <span className="legend__dot legend__dot--booked" /> Booked
+                  </span>
+                  <span className="legend__item">
+                    <span className="legend__dot legend__dot--hold" /> Hold
+                  </span>
+                  <span className="legend__item">
+                    <span className="legend__dot legend__dot--open" /> Open
+                  </span>
+                </div>
+              )}
             </div>
           </div>
-
-          <div className="calendar__grid">
-            {DAY_NAMES.map((day) => (
-              <div key={day} className="calendar__day-label">
-                {day}
-              </div>
-            ))}
-            {calendar.map((cell) => {
-              const dayNumber = cell.date.getDate()
-              const isToday =
-                cell.inMonth &&
-                cell.date.toDateString() === today.toDateString()
-              const isBooked = cell.inMonth && bookedDays.has(dayNumber)
-              const isHold = cell.inMonth && holdDays.has(dayNumber)
-
-              return (
-                <div
-                  key={cell.date.toISOString()}
-                  className={`calendar__cell${cell.inMonth ? '' : ' calendar__cell--muted'}${
-                    isToday ? ' calendar__cell--today' : ''
-                  }${isBooked ? ' calendar__cell--booked' : ''}${
-                    isHold ? ' calendar__cell--hold' : ''
-                  }`}
-                >
-                  <span className="calendar__date">{dayNumber}</span>
-                  {isBooked && <span className="calendar__label">Visit</span>}
-                  {isHold && <span className="calendar__label">Hold</span>}
+          {viewMode === 'month' ? (
+            <div className="calendar__grid">
+              {DAY_NAMES.map((day) => (
+                <div key={day} className="calendar__day-label">
+                  {day}
                 </div>
-              )
-            })}
-          </div>
+              ))}
+              {calendar.map((cell) => {
+                const dayNumber = cell.date.getDate()
+                const isToday =
+                  cell.inMonth &&
+                  cell.date.toDateString() === today.toDateString()
+                const isBooked = cell.inMonth && bookedDays.has(dayNumber)
+                const isHold = cell.inMonth && holdDays.has(dayNumber)
+
+                return (
+                  <div
+                    key={cell.date.toISOString()}
+                    className={`calendar__cell${cell.inMonth ? '' : ' calendar__cell--muted'}${
+                      isToday ? ' calendar__cell--today' : ''
+                    }${isBooked ? ' calendar__cell--booked' : ''}${
+                      isHold ? ' calendar__cell--hold' : ''
+                    }`}
+                  >
+                    <span className="calendar__date">{dayNumber}</span>
+                    {isBooked && <span className="calendar__label">Visit</span>}
+                    {isHold && <span className="calendar__label">Hold</span>}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="week-view__wrapper">
+              <div className="coach-filter">
+                <p className="coach-filter__label">Coaches</p>
+                <div className="coach-filter__options">
+                  {coaches.map((coach) => (
+                    <label key={coach.id} className="coach-filter__option">
+                      <input
+                        type="checkbox"
+                        checked={visibleCoachIds.includes(coach.id)}
+                        onChange={() => {
+                          setVisibleCoachIds((current) =>
+                            current.includes(coach.id)
+                              ? current.filter((id) => id !== coach.id)
+                              : [...current, coach.id],
+                          )
+                        }}
+                      />
+                      <span>{coach.displayName}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <WeekView
+                referenceDate={today}
+                coaches={coaches}
+                events={events}
+                visibleCoachIds={visibleCoachIds}
+              />
+            </div>
+          )}
         </div>
 
         <aside className="side">
